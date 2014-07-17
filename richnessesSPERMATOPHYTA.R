@@ -9,7 +9,7 @@ rownames(oo)=oo$family
 pl=get(data(plantlist_classification))
 famr=split(pl, pl$family)
 frichnesses=data.frame(n.taxa=sapply(famr, nrow))
-frichnesses[frichness
+#frichnesses[frichness
 swap=rownames(frichnesses)%in%syn$from
 if(any(swap)){
 	rownames(frichnesses)[swap]=syn$to[match(rownames(frichnesses)[swap], syn$from)]
@@ -54,12 +54,12 @@ richnesses_and_ages.phylo=function(phy){
 }
 
 
-prnord=prn(ordphy, orichnesses)
+#prnord=prn(ordphy, orichnesses)
 prnfam=get(load("spermatophyta_AToL_639_PL_MEDUSA_BATCH.familial_MLE.rda"))$phy
 
 
-orddat=richnesses_and_ages.phylo(prnord)
-olm=lm(log(orddat$richness)~orddat$age)
+#orddat=richnesses_and_ages.phylo(prnord)
+#olm=lm(log(orddat$richness)~orddat$age)
 
 famdat=richnesses_and_ages.phylo(prnfam)
 flm=lm(log(famdat$richness)~famdat$age)
@@ -69,19 +69,19 @@ gety=function(m,b,x){
 }
 
 pdf("richness_age.spermatophyta.pdf", width=6, height=12)
-layout(matrix(1:2, nrow=2))
+#layout(matrix(1:2, nrow=2))
 xx=range(famdat$age)
 yy=gety(coef(flm)[2], coef(flm)[1], xx)
 plot(famdat$richness~famdat$age,  log="y", xlab="stem age",  ylab="species richness", bty="n", pch=19, xlim=c(0, max(famdat$age)))
-#abline(a=coef(flm)[1], b=coef(flm)[2], lty=2)
 mtext("families")
 lines(xx,exp(yy),lty=2)
 
-xx=range(orddat$age)
-yy=gety(coef(olm)[2], coef(olm)[1], xx)
-plot(orddat$richness~orddat$age,  log="y", xlab="stem age",  ylab="species richness", bty="n", pch=19, xlim=c(0, max(orddat$age)))
-mtext("orders")
+#xx=range(orddat$age)
+#yy=gety(coef(olm)[2], coef(olm)[1], xx)
+#plot(orddat$richness~orddat$age,  log="y", xlab="stem age",  ylab="species richness", bty="n", pch=19, xlim=c(0, max(orddat$age)))
+#mtext("orders")
 #abline(a=coef(olm)[1], b=coef(olm)[2], lty=2)
-lines(xx,exp(yy),lty=2)
+
+#lines(xx,exp(yy),lty=2)
 
 dev.off()
