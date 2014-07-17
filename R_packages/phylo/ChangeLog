@@ -1,0 +1,29 @@
+CHANGES IN phylo VERSION 0.11
+2012-01-05
+  * modified edges.R to handle trees with incongruent sets of tips
+  * optimized rank_prune.phylo()
+  * added compare.phylo() for finding inconsistent subclades across trees
+  * fixed bug in unique.phylo() that excluded singletons
+
+2011-11-27
+  * moving to bitbucket 
+  * adding support for sinking nodes (polytomization)
+  * adding support for using penalized-likelihood rate-smoothing
+  * adding support for ambiguity recognition in read.seq()
+
+2011-11-19
+  * includes genus-family-order taxonomy based on accepted genera from plantlist.org and APGIII taxonomy (data/spermatophyta_APGIII_taxonomy.rda)
+  * includes family-order taxonomy based on APGIII (data/spermatophyta_APGIII_orders.rda)
+
+2011-11-16
+  * adding search capability for wikispecies
+
+2011-11-15
+  * updates to AToL.R functions
+
+2011-11-14
+  * merging with AToL functions
+  * moved several utilities from auteur
+
+2011-09-27
+  * initialized package

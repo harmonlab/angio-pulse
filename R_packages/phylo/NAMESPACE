@@ -1,0 +1,3 @@
+useDynLib(phylo)
+exportPattern("^[[:alpha:]]+")
+#importFrom( utils, capture.output )

@@ -1,0 +1,13 @@
+Package: phylo
+Type: Package
+Title: general utilities for phylo objects
+Version: 0.12.0105
+Date: 2012-01-05
+Author: Jonathan Eastman
+Maintainer: Jonathan Eastman <jonathan.eastman@gmail.com>
+Depends: ape, XML, Biostrings, digest, sp, tools
+LinkingTo: Rcpp
+Description: 'phylo' provides general utilities for dealing with phylo objects, searching several taxonomic databases, supplementing phlawd, PATHd8, and raxml, and dealing with sequence data
+License: GPL (>= 2)
+LazyLoad: yes
+Packaged: 2012-01-06 20:44:11 UTC; jeastman
