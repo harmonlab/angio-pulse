@@ -577,7 +577,7 @@ logscale_density=function(x, ...){
 
 
 ## SIMULATIONS ##
-build=FALSE
+build=TRUE
 process=TRUE
 require(multicore)
 dirn="medusa_AGEDIVERSITY"
