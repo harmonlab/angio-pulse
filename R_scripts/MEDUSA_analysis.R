@@ -86,7 +86,88 @@ nodelabel.phylo=function(phy, taxonomy, rank=NULL){
 	phy
 }
 
+hashes.phylo <- function (phy, tips = NULL) 
+{
+    is.multi<-"multiPhylo" %in% class(phy)
+    
+    if (!is.multi) {
+        trees = list(phy)
+    } else trees = phy
+    
+    if (is.null(tips)) {
+        tips_tmp = trees[[1]]$tip.label
+        if (is.multi) {
+            for (i in 2:length(trees)) {
+                tips_tmp = intersect(tips_tmp, trees[[i]]$tip.label)
+            }
+        }
+        tips = tips_tmp
+    }
+    NULL_TIPS = digest(integer(length(tips)))
+    if (check.multicore()) {
+        f = f = function(X, FUN) mclapply(X, FUN, mc.silent = TRUE)
+    } else f = lapply
+    res = lapply(trees, function(phy) {
+        storage.mode(phy$Nnode) <- "integer"
+        descendants.idx <- .compile_descendants(phy)
+        hashes <- unlist(f(descendants.idx, function(desc) hash.tip(phy$tip.label[desc], 
+            tips)))
+        hashes[hashes == NULL_TIPS] = NA
+        phy$hash = hashes
+        attr(phy, "hashtips") = tips
+        return(.uniquify_hashes(phy))
+    })
+    if (!is.multi) {
+        return(res[[1]])
+    }
+    else {
+        class(res) = "multiPhylo"
+        return(res)
+    }
+}
 
+.uniquify_hashes <- function (phy) 
+{
+    hash = phy$hash
+    if (is.null(hash)) 
+        stop("Must supply 'phy' with 'hash' object.")
+    tt = table(hash[!is.na(hash)])
+    if (any(tt > 1)) {
+        N = Ntip(phy)
+        subset = names(tt[tt > 1])
+        for (s in subset) {
+            idx = which((hash == s) == TRUE)
+            if (s %in% hash[1:N]) {
+                hash[idx[idx != min(idx)]] = NA
+            }
+            else {
+                hash[idx[idx != max(idx)]] = NA
+            }
+        }
+        phy$hash = hash
+    }
+    return(phy)
+}
+
+
+# alternate version of "prop_part" if only tips are needed [FIXME: put into C++]
+.compile_descendants=function(phy){
+	pphy=reorder(phy,"cladewise")
+	ee=pphy$edge
+	ee=ee[nrow(ee):1,]
+	pphy$edge=ee
+	desc=as.list(1:(nrow(ee)+1))
+	N=Ntip(phy)
+	dat=ee[ee[,2]>N,]
+	if(check.multicore()) f=mclapply else f=lapply
+	descendants=f(dat[,2], function(x) get.desc.of.node(x, pphy))
+	for(i in 1:nrow(dat)){
+		dd=dat[i,2]
+		desc[[dd]]=unlist(desc[descendants[[i]]])
+	}
+	desc[[N+1]]=1:N
+	return(desc)
+}
 
 ## PLOTTING FUNCTIONS ##
 add.transparency=function (col, alpha) 
@@ -672,7 +753,7 @@ require(turboMEDUSA)
 base="spermatophyta_AToL_639_PL_MEDUSA_BATCH"
 resdir="MEDUSA_batch"
 cores=4
-setwd("~/Documents/tank/angiosperms/analyses/")
+setwd("~/Documents/tank/angiosperms/angio-pulse/data_files")
 
 ## FIND MLE ESTIMATE
 # collect taxonomic information
@@ -929,5 +1010,6 @@ pdf("spermatophyta_AToL_639_PL_MEDUSA_BATCH.shifteffects_BATCH.pdf", width=24, h
 	}
 dev.off()
 
+# recreate table 1
 
 
