@@ -663,7 +663,7 @@ medusa_time.plot=function(dat, col.poly=add.transparency("gray",0.5), ...){
 ## END turboMEDUSA SUPPLEMENTARY FUNCTIONS ##
 
 ## PROCESSING ## 
-runBATCH=TRUE
+runBATCH=FALSE
 runMLE=TRUE
 require(phylo)
 require(multicore)
