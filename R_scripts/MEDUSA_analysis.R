@@ -828,9 +828,9 @@ mle=mle_res$phy
 
 resfiles=dir(resdir, full.names=TRUE)
 
-r.res<-e.res<-t.res<-matrix(0, nrow=Ntip(mle)+Nnode(mle), ncol=length(resfiles))
-rownames(r.res)<-rownames(e.res)<-rownames(t.res)<-rownm<-c(mle$tip.label, mle$node.label)
-colnames(r.res)<-colnames(e.res)<-colnames(t.res)<-basename.noext(resfiles)
+r.res<-e.res<-t.res<-rabs.res<-eabs.res<-matrix(NA, nrow=Ntip(mle)+Nnode(mle), ncol=length(resfiles))
+rownames(r.res)<-rownames(e.res)<-rownames(t.res)<-rownames(rabs.res)<-rownames(eabs.res)<-rownm<-c(mle$tip.label, mle$node.label)
+colnames(r.res)<-colnames(e.res)<-colnames(t.res)<-colnames(rabs.res)<-colnames(eabs.res)<-basename.noext(resfiles)
 
 ## compile results from PL replicates
 tips=mle_res$phy$tip.label
@@ -845,16 +845,22 @@ for(i in 1:length(resfiles)){
 	
 	new=dat[-which(is.na(dat$Break.Node)),]
 	new$r_shift=new$r-new$ancestral_r
-	new$epsilon[new$name%in%tips]=NA
 	new$epsilon_shift=new$epsilon-new$ancestral_epsilon
 	
+	new$epsilon[new$name%in%tips]=NA
+	new$epsilon_shift[new$name%in%tips]=NA
+
 	mm=match(new$name,rownm)
 	t.res[mm,i]=new$time
 	r.res[mm,i]=new$r_shift
 	e.res[mm,i]=new$epsilon_shift
+	
+	rabs.res[mm,i]=new$r
+	eabs.res[mm,i]=new$epsilon
+	
 }
-e.res[is.na(e.res)]=0
 
+z
 pdf(paste(base, "SUMMARY.pdf", sep="."), height=60, width=60)
 
 	fix_matrix=function(mat){
@@ -892,11 +898,15 @@ pdf(paste(base, "SUMMARY.pdf", sep="."), height=60, width=60)
 dev.off()
 
 # compile PL replicate results for mean shift time, effect sizes, and weight of evidence
-shift_pct=apply(t.res, 1, function(x) sum(x>0))/ncol(t.res)
-tmean=sapply(1:nrow(t.res), function(idx) {x=t.res[idx,]; y=mean(x[x>0]); if(is.na(y)) return(0) else return(y)})
-rmean=sapply(1:nrow(r.res), function(idx) {x=r.res[idx,]; y=mean(x[x!=0]); if(is.na(y)) return(0) else return(y)})
-emean=sapply(1:nrow(e.res), function(idx) {x=e.res[idx,]; y=mean(x[x!=0]); if(is.na(y)) return(0) else return(y)})
-mean_res=as.data.frame(cbind(pct=shift_pct, time=tmean, r=rmean, epsilon=emean), stringAsFactors=FALSE)
+shift_pct=apply(t.res, 1, function(x) sum(x>0, na.rm=T))/ncol(t.res)
+tmean=sapply(1:nrow(t.res), function(idx) {x=t.res[idx,]; y=mean(x[x>0], na.rm=T); if(is.na(y)) return(0) else return(y)})
+rmean=sapply(1:nrow(r.res), function(idx) {x=r.res[idx,]; y=mean(x[x!=0], na.rm=T); if(is.na(y)) return(0) else return(y)})
+emean=sapply(1:nrow(e.res), function(idx) {x=e.res[idx,]; y=mean(x[x!=0], na.rm=T); if(is.na(y)) return(0) else return(y)})
+
+rabs_mean=apply(rabs.res, 1, mean, na.rm=T)
+eabs_mean=apply(eabs.res, 1, mean, na.rm=T)
+
+mean_res=as.data.frame(cbind(pct=shift_pct, time=tmean, r=rmean, epsilon=emean, rabs=rabs_mean, eabs=eabs_mean), stringAsFactors=FALSE)
 
 cutoff=0.75
 root=max(mle_res$z[,"t.0"])
@@ -1010,6 +1020,23 @@ pdf("spermatophyta_AToL_639_PL_MEDUSA_BATCH.shifteffects_BATCH.pdf", width=24, h
 	}
 dev.off()
 
-# recreate table 1
+# recreate table 1 but with absolute r and eps added
+# locate shifts above cutoff
+# also include absolute r and eps
+
+batch.summary=mean_res[mean_res$pct>=cutoff,]
+batch.summary=batch.summary[order(batch.summary$r, decreasing=TRUE),]
+batch.summary$epsilon[rownames(batch.summary)%in%tips]=NA
+write.csv(batch.summary, "manuscript_table1.csv")
 
 
+# recreate table s1
+mr<-mean_res[order(mean_res$pct, decreasing=TRUE),]
+
+mr$epsilon[rownames(mr)%in%tips]=NA
+
+mr<-mr[mr$pct>0,]
+mr<-mr[,c(1, 2, 5, 6, 3, 4)]
+colnames(mr)<-c("support", "MYA", "r", "eps", "delta-r", "delta-eps")
+
+write.csv(mr, "manuscript_tableS1.csv")
