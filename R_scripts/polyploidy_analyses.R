@@ -61,8 +61,7 @@ for(i in 1:length(wgdComb)) {
 	for(j in 1:nrow(pp)) {
 		if(pl[j]==pr[j]) { # this is a tip
 			ww<-which(phy$tip.label==pl[j])
-			xx<-which(phy$edge[,2]==ww)
-			polyNode[j]<-phy$edge[xx,1]
+			polyNode[j]<-ww
 		} else { # this is an internal node
 			pair<-c(pl[j], pr[j])
 			polyNode[j]<-getMRCA(phy, pair)
@@ -72,8 +71,8 @@ for(i in 1:length(wgdComb)) {
 	exactMatches[i]<-sum(!is.na(match(polyNode, shiftNode))) # count exact matches
 	
 	for(j in 1:1000) { # repeat for 1000 random assignments of polyploidy
-		randomShifts<-randomPolyploidyNodes(phy, length(shiftNode))
-		randomExactMatches[j,i] <- sum(!is.na(match(polyNode, randomShifts)))
+		randomPolys<-randomPolyploidyNodes(phy, length(polyNode))
+		randomExactMatches[j,i] <- sum(!is.na(match(shiftNode, randomPolys)))
 	}
 }
 
@@ -88,18 +87,39 @@ pExact < 0.05
 	
 # now repeat using downstream distances
 
-# test for exact matches
 tipDistances<-numeric(length(wgdComb))
 randomTipDistances <-matrix(nrow=1000, ncol=length(wgdComb))
 
-#tcache<-geiger:::.cache.descendants(phy)
 
 library(phytools)
 p2<-phy
 p2$edge.length[]<-1
 lookupDistance<-dist.nodes(p2)
 
-closeCount<-function(pn, sn, cutoff=3) {
+# eliminate tip node WDGs
+polyploidy2<-polyploidy[c(-9, -13, -14),]
+
+# this returns all combinations of alternate placements for 
+# the polyploidy events - there are 6 x 2 x 3 = 36 combinations
+# this one deals with polyploidy2, which has tip WGDs left out
+return_all_combinations2<-function(polyploidy2) {
+	res<-list()
+	counter<-1
+	for(i in 3:8) # loop through WGD 6
+		for(j in 10:11) # loop through WGD 6
+			for(k in 12:14) { # loop through WGD 9 
+				rowSelections<-c(1, 2, i, 9, j, k)
+				res[[counter]]<-polyploidy2[rowSelections,]
+				counter <- counter + 1
+			}
+	
+	res			
+}
+
+# get them
+wgdComb2<-return_all_combinations2(polyploidy2)
+
+closeCount<-function(pn, sn, cutoff=3, print=F) {
 	
 	mdists<-numeric(length(pn))
 	# gather descendants of poly nodes pn
@@ -112,18 +132,19 @@ closeCount<-function(pn, sn, cutoff=3) {
 		} else mdists[i]<-Inf
 	}
 	testStat<-sum(mdists <= cutoff)
+	if(print) cat(pn[which(mdists <= cutoff)], "\n")
 	testStat
 }
 
 # test for close matches
-testStat<-numeric(length(wgdComb))
-nullDist<-matrix(nrow=1000, ncol=length(wgdComb))
+testStat<-numeric(length(wgdComb2))
+nullDist<-matrix(nrow=1000, ncol=length(wgdComb2))
 
 # loop through all combinations
-for(i in 17:length(wgdComb)) {
+for(i in 1:length(wgdComb2)) {
 	
 	# get the ith one
-	pp<-wgdComb[[i]]
+	pp<-wgdComb2[[i]]
 	
 	# left and right tips used to get the nodes
 	pl<-as.character(pp$left_tip)
@@ -133,20 +154,20 @@ for(i in 17:length(wgdComb)) {
 	for(j in 1:nrow(pp)) {
 		if(pl[j]==pr[j]) { # this is a tip
 			ww<-which(phy$tip.label==pl[j])
-			xx<-which(phy$edge[,2]==ww)
-			polyNode[j]<-phy$edge[xx,1]
+			polyNode[j]<-ww
 		} else { # this is an internal node
 			pair<-c(pl[j], pr[j])
 			polyNode[j]<-getMRCA(phy, pair)
 		}
 	}
 	
-	testStat[i]<-closeCount(polyNode, shiftNode)
+	testStat[i]<-closeCount(polyNode, shiftNode, print=T)
 		
 	for(j in 1:1000) { # repeat for 1000 random assignments of polyploidy
-		randomShifts<-randomPolyploidyNodes(phy, length(shiftNode))
-		nullDist[j,i] <- closeCount(polyNode, randomShifts)
+		randomPolys<-randomPolyploidyNodes(phy, length(polyNode))
+		nullDist[j,i] <- closeCount(randomPolys, shiftNode)
 	}
+	cat(i, "\n")
 }
 
 # calculate p-values
@@ -155,3 +176,49 @@ for(i in 1:length(testStat)) {
 	pClose[i]<-(sum(nullDist[,i] >= testStat[i])+1)/1001
 }
 
+pClose
+
+
+# retest with different cutoff values
+
+allPValues<-matrix(nrow=10, ncol=length(wgdComb2))
+for(ct in 1:10) {
+	testStat<-numeric(length(wgdComb2))
+	nullDist<-matrix(nrow=1000, ncol=length(wgdComb2))
+
+	# loop through all combinations
+	for(i in 1:length(wgdComb2)) {
+	
+	# get the ith one
+	pp<-wgdComb2[[i]]
+	
+	# left and right tips used to get the nodes
+	pl<-as.character(pp$left_tip)
+	pr<-as.character(pp$right_tip)
+
+	polyNode<-numeric(length=nrow(pp))
+	for(j in 1:nrow(pp)) {
+		if(pl[j]==pr[j]) { # this is a tip
+			ww<-which(phy$tip.label==pl[j])
+			polyNode[j]<-ww
+		} else { # this is an internal node
+			pair<-c(pl[j], pr[j])
+			polyNode[j]<-getMRCA(phy, pair)
+		}
+	}
+	
+	testStat[i]<-closeCount(polyNode, shiftNode, cutoff= ct)
+		
+	for(j in 1:1000) { # repeat for 1000 random assignments of polyploidy
+		randomPolys<-randomPolyploidyNodes(phy, length(polyNode))
+		nullDist[j,i] <- closeCount(randomPolys, shiftNode, cutoff= ct)
+	}
+	cat(i, " ")
+	}
+
+	# calculate p-values
+	for(i in 1:length(testStat)) {
+		allPValues[ct,i]<-(sum(nullDist[,i] >= testStat[i])+1)/1001
+	}
+	cat("\n", ct, " is done\n")
+}
