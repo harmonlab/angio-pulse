@@ -14,6 +14,23 @@ phy=get(load("spermatophyta_AToL_639_PL_MEDUSA_BATCH.familial_MLE.rda"))$phy
 
 shiftNode=match(rownames(dat), c(phy$tip.label, phy$node.label)) # nodes where shifts occur
 
+shiftNode<-numeric(dim(dat)[1])
+
+for(i in 1:dim(dat)[1]) {
+	nameToMatch<-rownames(dat)[i]
+	
+	if(nameToMatch %in% phy$node.label) {
+		theMatch<-which(phy$node.label==nameToMatch)
+		shiftNode[i]<-theMatch + length(phy$tip.label) # aligns phy$node.label with numbers in edge matrix
+	} else {
+		theMatch<-which(phy$tip.label==nameToMatch)
+		shiftNode[i]<-theMatch
+	}
+	
+}
+
+
+
 # polyploidy events from tank
 polyploidy=read.csv("data_files/Polyploidization.Dec2014.LJH.csv", header=TRUE)
 
@@ -181,8 +198,8 @@ pClose
 
 # retest with different cutoff values
 
-allPValues<-matrix(nrow=10, ncol=length(wgdComb2))
-for(ct in 1:10) {
+allPValues<-matrix(nrow=5, ncol=length(wgdComb2))
+for(ct in 1:5) {
 	testStat<-numeric(length(wgdComb2))
 	nullDist<-matrix(nrow=1000, ncol=length(wgdComb2))
 
@@ -222,3 +239,151 @@ for(ct in 1:10) {
 	}
 	cat("\n", ct, " is done\n")
 }
+
+rownames(allPValues)<-1:5
+colnames(allPValues)<-paste("set", 1:36)
+write.csv(allPValues, file="allThePValues.csv")
+
+# time distance calculations for table
+
+# these are the crown distances
+lookupTimeDistance<-dist.nodes(phy)
+p3<-phy
+p3$node.label<-NULL
+lookupBt<-branching.times(p3)
+
+
+getBranchPairDistance<-function(phy, node1, node2) {
+	# crown-to-crown: that's easy
+	midDist<-lookupTimeDistance[node1, node2]
+	
+	age1<-lookupBt[which(names(lookupBt)==node1)]
+	age2<-lookupBt[which(names(lookupBt)==node2)]
+	
+	#fixing problem when these are tips
+	if(length(age1)==0) age1<-0
+	if(length(age2)==0) age2<-0
+	
+	ww<-which(phy$edge[,2]==node1)
+	n1anc<-phy$edge[ww,1]
+	ww<-which(phy$edge[,2]==node2)
+	n2anc<-phy$edge[ww,1]
+
+	ancAge1<-lookupBt[which(names(lookupBt)==n1anc)]
+	ancAge2<-lookupBt[which(names(lookupBt)==n2anc)]
+
+	if(age1 > age2) {
+		oldCrown<-age1
+		youngCrown<-age2
+		oldStem<-ancAge1
+		youngStem<-ancAge2
+	} else {
+		oldCrown<-age2
+		youngCrown<-age1
+		oldStem<-ancAge2
+		youngStem<-ancAge1
+	}
+	
+	
+	# minumum possible: old crown to young stem
+	minDist<-oldCrown - youngStem
+	
+	# maximum possible: old stem to young crown
+	maxDist<-oldStem - youngCrown
+	
+	res<-c(midDist, minDist, maxDist)
+	names(res)<- c("midDist", "minDist", "maxDist")	
+	res
+}
+
+
+getNodePairDistance<-function(phy, node1, node2) {
+	
+	nodeDist<-lookupDistance[node1, node2]
+	
+	age1<-lookupBt[which(names(lookupBt)==node1)]
+	age2<-lookupBt[which(names(lookupBt)==node2)]
+	
+	#fixing problem when these are tips
+	if(length(age1)==0) age1<-0
+	if(length(age2)==0) age2<-0
+	
+	ww<-which(phy$edge[,2]==node1)
+	n1anc<-phy$edge[ww,1]
+	ww<-which(phy$edge[,2]==node2)
+	n2anc<-phy$edge[ww,1]
+
+	ancAge1<-lookupBt[which(names(lookupBt)==n1anc)]
+	ancAge2<-lookupBt[which(names(lookupBt)==n2anc)]
+
+	if(age1 > age2) {
+		oldCrown<-age1
+		youngCrown<-age2
+		oldStem<-ancAge1
+		youngStem<-ancAge2
+	} else {
+		oldCrown<-age2
+		youngCrown<-age1
+		oldStem<-ancAge2
+		youngStem<-ancAge1
+	}
+	
+	
+	# minumum possible: old crown to young stem
+	minDist<-oldCrown - youngStem
+	
+	# maximum possible: old stem to young crown
+	maxDist<-oldStem - youngCrown
+	
+	res<-c(midDist, minDist, maxDist)
+	names(res)<- c("midDist", "minDist", "maxDist")	
+	res
+}
+
+# test
+gg<-getBranchPairDistance(phy, 379, 381)
+
+allDistances<-matrix(nrow=dim(polyploidy)[1], ncol=5)
+colnames(allDistances)<- c("match","midDist", "minDist", "maxDist", "nodeDist")	
+
+findClosestShift<-function(pn, snodes) {
+	
+	pd<-getDescendants(phy, pn)
+	targets<-pd[which(pd %in% sn)]
+	targetDistance<-lookupTimeDistance[pn,targets]
+	if(length(targetDistance)!=0) {
+			closeDist<-min(targetDistance)
+			names(closeDist)<-targets[which(targetDistance==min(targetDistance))]
+	} else closeDist<-Inf
+	
+	closeDist
+}
+
+
+for(i in 1:dim(polyploidy)[1]) {
+	pl<-as.character(polyploidy[i,"left_tip"])
+	pr<-as.character(polyploidy[i,"right_tip"])
+
+	if(pl==pr) { # this is a tip
+		ww<-which(phy$tip.label==pl)
+		polyNode<-ww
+	} else { # this is an internal node
+		pair<-c(pl, pr)
+		polyNode<-getMRCA(phy, pair)
+	}
+	
+	cs<-findClosestShift(polyNode, shiftNode)
+	if(cs < Inf) {
+		targetNode<-as.numeric(names(cs))
+		thisResult<-getBranchPairDistance(phy, polyNode, targetNode)
+		thisNodeDis<-lookupDistance[polyNode, targetNode]
+		
+		allDistances[i,]<-c(targetNode, thisResult,thisNodeDis)
+	}
+	else {
+		allDistances[i,]<-c(NA, Inf, Inf, Inf, NA)
+	}
+}
+
+timeResult<-cbind(polyploidy, allDistances)
+write.csv(timeResult, file="timeresult.csv")

@@ -18,11 +18,11 @@ tmp=cbind(oo, n.taxa=frichnesses[match(oo$family, rownames(frichnesses)),"n.taxa
 ordr=split(tmp, tmp$order)
 orichnesses=data.frame(n.taxa=sapply(ordr, function(x) sum(x$n.taxa, na.rm=TRUE)))
 
-phy=read.tree("out_dates.tre")
+phy=read.tree("data_files/out_dates.tre")
 drop_genera=list(Escalloniaceae="Platyspermation", Olacaceae="Ximenia", Phytolaccaceae="Rivina", Gesneriaceae="Saintpaulia", Aristolochiaceae="Saruma")
 phy=drop.tip(phy, unlist(drop_genera))
 
-tax=read.csv("spermatophyta_AToL_639_PL_MEDUSA_BATCH.MLE_0.92.phy-taxonomy.csv",as.is=TRUE,row=1)
+tax=read.csv("data_files/spermatophyta_AToL_639_PL_MEDUSA_BATCH.MLE_0.92.phy-taxonomy.csv",as.is=TRUE,row=1)
 ordphy=rank_prune.phylo(phy, tax, "order")
 
 prn=function(phy, dat){
@@ -39,9 +39,9 @@ prn=function(phy, dat){
 
 richnesses_and_ages.phylo=function(phy){
 	if(!any("clade.tree"%in%class(phy))) stop("supply 'phy' as a cladetree")
-	if(!is.ultrametric(phy)) {
-		phy=ultrametricize.phylo(phy)
-	}
+	#if(!is.ultrametric(phy)) { # not needed
+	#	phy=ultrametricize.phylo(phy)
+	#}
 	rr=sapply(phy$clades, length)
 	ww=phy$edge[,2]<=Ntip(phy)
 	aa=phy$edge.length[ww]
@@ -54,34 +54,36 @@ richnesses_and_ages.phylo=function(phy){
 }
 
 
-#prnord=prn(ordphy, orichnesses)
+prnord=prn(ordphy, orichnesses)
 prnfam=get(load("spermatophyta_AToL_639_PL_MEDUSA_BATCH.familial_MLE.rda"))$phy
 
 
-#orddat=richnesses_and_ages.phylo(prnord)
-#olm=lm(log(orddat$richness)~orddat$age)
+orddat=richnesses_and_ages.phylo(prnord)
+olm=lm(log(orddat$richness)~orddat$age)
+summary(olm)
 
 famdat=richnesses_and_ages.phylo(prnfam)
 flm=lm(log(famdat$richness)~famdat$age)
+summary(flm)
 
 gety=function(m,b,x){
 	m*x+b
 }
 
 pdf("richness_age.spermatophyta.pdf", width=6, height=12)
-#layout(matrix(1:2, nrow=2))
+layout(matrix(1:2, nrow=2))
 xx=range(famdat$age)
 yy=gety(coef(flm)[2], coef(flm)[1], xx)
 plot(famdat$richness~famdat$age,  log="y", xlab="stem age",  ylab="species richness", bty="n", pch=19, xlim=c(0, max(famdat$age)))
 mtext("families")
 lines(xx,exp(yy),lty=2)
 
-#xx=range(orddat$age)
-#yy=gety(coef(olm)[2], coef(olm)[1], xx)
-#plot(orddat$richness~orddat$age,  log="y", xlab="stem age",  ylab="species richness", bty="n", pch=19, xlim=c(0, max(orddat$age)))
-#mtext("orders")
+xx=range(orddat$age)
+yy=gety(coef(olm)[2], coef(olm)[1], xx)
+plot(orddat$richness~orddat$age,  log="y", xlab="stem age",  ylab="species richness", bty="n", pch=19, xlim=c(0, max(orddat$age)))
+mtext("orders")
 #abline(a=coef(olm)[1], b=coef(olm)[2], lty=2)
 
-#lines(xx,exp(yy),lty=2)
+lines(xx,exp(yy),lty=2)
 
 dev.off()
